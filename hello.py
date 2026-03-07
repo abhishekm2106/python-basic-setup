@@ -1,5 +1,5 @@
 pet = 32434
-
+print("whats upp")
 dic = {
     34:"dd",
     True:"ddde333333",
