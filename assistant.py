@@ -6,18 +6,27 @@ import io
 from google.genai import types
 from scipy.io.wavfile import write
 import pyttsx3
+import torch
+from qwen_tts import Qwen3TTSModel
+
+from transformers import AutoProcessor, AutoModel
+
+import torch
+
+print(torch.cuda.is_available())
+print(torch.cuda.get_device_name(0))
 
 fs = 16000
-seconds = 3
+seconds = 4
 
 print("Recording...")
 audio = sd.rec(int(seconds * fs), samplerate=fs, channels=1)
 sd.wait()
 
-# ✅ Play it back immediately
-print("Playing back...")
-sd.play(audio, samplerate=fs)
-sd.wait()
+# # ✅ Play it back immediately
+# print("Playing back...")
+# sd.play(audio, samplerate=fs)
+# sd.wait()
 
 # Convert audio to bytes in memory
 buffer = io.BytesIO()
@@ -62,18 +71,56 @@ response = client.models.generate_content(
 
 # Assuming 'response' holds the text returned from the LLM
 response_text = response.text
+print("response_text:", response_text)
 
-# Initialize the TTS engine
-engine = pyttsx3.init()
+# # Initialize the TTS engine
+# engine = pyttsx3.init()
 
-# Optionally set properties like rate or voice
-engine.setProperty('rate', 150)  # Speed of speech
+# # Optionally set properties like rate or voice
+# engine.setProperty('rate', 150)  # Speed of speech
 
-# Convert text to speech
-engine.say(response_text)
-engine.runAndWait()
+# # Convert text to speech
+# engine.say(response_text)
+# engine.runAndWait()
 
-# print("response : ",response.model_dump_json(indent=2))
+
+
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+)
+
+tts_audio_list, fs_out = model.generate_custom_voice(
+    text=response_text,
+    language="English", # Pass `Auto` (or omit) for auto language adaptive; if the target language is known, set it explicitly.
+    speaker="Vivian",
+)
+
+wav_data = tts_audio_list[0]
+
+write("output.wav", fs_out, wav_data)
+
+print("Playing assistant response...")
+sd.play(wav_data, samplerate=fs_out)
+sd.wait()
+
 print("response:", response.text)
 
 print("---------")
+
+
+
+
+# print("Torch version:", torch.__version__)
+# print("CUDA available:", torch.cuda.is_available())
+# print("CUDA version:", torch.version.cuda)
+
+# from qwen_tts import Qwen3TTSModel
+# model = Qwen3TTSModel.from_pretrained(
+#     "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+#     device_map="cuda:0",
+#     dtype=torch.float32,
+# )
+# print(model.device)
